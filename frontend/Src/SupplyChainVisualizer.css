@@ -1,0 +1,325 @@
+/* ============================================================
+   SCORCHED — Supply Chain Visualizer Styles
+   Dark theme, X Layer brand-aligned
+   ============================================================ */
+
+.supply-chain-visualizer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  background: #0f172a;
+  color: #f1f5f9;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+/* Header Stats Bar */
+.sc-header {
+  display: flex;
+  gap: 24px;
+  padding: 16px 24px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sc-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.sc-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.sc-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Canvas Container */
+.sc-canvas-container {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+}
+
+.sc-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Zoom Controls */
+.sc-zoom-controls {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.sc-zoom-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sc-zoom-controls button:hover {
+  background: #334155;
+  border-color: #475569;
+  transform: scale(1.05);
+}
+
+.sc-zoom-controls button:active {
+  transform: scale(0.95);
+}
+
+/* Detail Panel */
+.sc-detail-panel {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 320px;
+  max-height: calc(100% - 48px);
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+.sc-detail-panel h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 8px;
+}
+
+.sc-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #1e293b;
+  font-size: 13px;
+}
+
+.sc-detail-row:last-child {
+  border-bottom: none;
+}
+
+.sc-detail-row span:first-child {
+  color: #94a3b8;
+}
+
+.sc-detail-row span:last-child,
+.sc-detail-row code {
+  color: #f1f5f9;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+.sc-detail-row a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.sc-detail-row a:hover {
+  text-decoration: underline;
+}
+
+/* Role Badges */
+.sc-role-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sc-role-provider { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.sc-role-evaluator { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+.sc-role-arbitrator { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.sc-role-user { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+
+/* Reputation Colors */
+.sc-reputation { font-weight: 700; }
+.sc-reputation-high { color: #22c55e; }
+.sc-reputation-medium { color: #eab308; }
+.sc-reputation-low { color: #ef4444; }
+
+/* Status Indicators */
+.sc-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sc-status-approved { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.sc-status-submitted { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.sc-status-pending { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+.sc-status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+/* Amount Highlight */
+.sc-amount {
+  color: #22c55e;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Hire Button */
+.sc-hire-button {
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sc-hire-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sc-hire-button:active {
+  transform: translateY(0);
+}
+
+/* Empty State */
+.sc-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.sc-empty-state p:first-child {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.sc-hint {
+  font-size: 12px;
+  color: #475569;
+}
+
+/* Loading & Error States */
+.visualizer-loading,
+.visualizer-error,
+.visualizer-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.visualizer-error {
+  color: #ef4444;
+}
+
+/* D3 Graph Elements */
+.supply-chain-link {
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.supply-chain-node {
+  transition: transform 0.1s ease;
+}
+
+.supply-chain-node:hover .node-circle {
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+}
+
+/* Pulse Animation for Active Status */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.status-pulse {
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* Scrollbar Styling */
+.sc-detail-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sc-detail-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sc-detail-panel::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+.sc-detail-panel::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sc-detail-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-height: 300px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .sc-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sc-stat {
+    min-width: auto;
+    flex: 1;
+  }
+}

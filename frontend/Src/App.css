@@ -1,0 +1,149 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+}
+
+.app-tagline {
+  margin: 4px 0 24px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.agent-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.agent-search input {
+  flex: 1;
+  max-width: 400px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 14px;
+}
+
+.agent-search button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-search button:hover {
+  background: #2563eb;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.app-empty-state {
+  padding: 48px;
+  text-align: center;
+  color: #64748b;
+  border: 1px dashed #334155;
+  border-radius: 12px;
+}
+
+/* Risk alerts panel */
+
+.risk-alerts-panel {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+.risk-alerts-panel h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.risk-alerts-subtitle {
+  margin: 0 0 16px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.risk-alerts-status {
+  color: #64748b;
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+.risk-alerts-error {
+  color: #ef4444;
+}
+
+.risk-alerts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-alert-item {
+  display: grid;
+  grid-template-columns: 1.2fr 0.6fr 1fr 1.2fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #0f172a;
+  border-left: 3px solid #64748b;
+  font-size: 13px;
+}
+
+.risk-alert-item.risk-alert-high {
+  border-left-color: #ef4444;
+}
+
+.risk-alert-item.risk-alert-medium {
+  border-left-color: #eab308;
+}
+
+.risk-alert-item.risk-alert-low {
+  border-left-color: #64748b;
+}
+
+.risk-alert-kind {
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.risk-alert-severity {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.risk-alert-target {
+  color: #cbd5e1;
+  font-family: monospace;
+}
+
+.risk-alert-time {
+  color: #64748b;
+  text-align: right;
+}
