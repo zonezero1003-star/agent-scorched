@@ -1,0 +1,335 @@
+# ============================================================
+# SCORCHED — GraphQL Schema
+# ERC-8004 (Identity/Reputation/Validation) + ERC-8183 (Agentic Commerce)
+# Rewritten to match real event signatures — see AUDIT.md and HANDOFF.md.
+# Every type here maps directly to a table in schema_erc8004_8183.sql.
+# No "role", "bond", "milestone", or "dispute" concepts — those existed
+# only in the original fabricated ABI and have no on-chain counterpart in
+# either real standard.
+# ============================================================
+
+scalar BigInt
+scalar Bytes
+scalar DateTime
+
+enum JobStatus {
+  OPEN
+  FUNDED
+  SUBMITTED
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+enum JobPaymentKind {
+  PAYMENT_RELEASED
+  EVALUATOR_FEE
+  REFUND
+}
+
+enum JobSettlementKind {
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+# ============================================================
+# AGENT (ERC-8004 IdentityRegistry)
+# ============================================================
+
+type Agent {
+  agentId: ID!                # uint256 ERC-721 tokenId
+  ownerAddress: Bytes!
+  agentUri: String             # registration file location (agent card)
+  metadata: [AgentMetadata!]!
+  firstSeenAt: DateTime!
+  updatedAt: DateTime!
+
+  # Reputation (from ReputationRegistry via the agent_reputation view)
+  feedbackCount: BigInt!
+  avgFeedbackValue: Float
+
+  feedback(pagination: PaginationInput): FeedbackConnection!
+  validations: [Validation!]!
+
+  # Commerce activity (ERC-8183) — this agent as client or provider
+  jobsAsClient(pagination: PaginationInput): JobConnection!
+  jobsAsProvider(pagination: PaginationInput): JobConnection!
+}
+
+type AgentMetadata {
+  metadataKey: String!
+  metadataValue: Bytes!
+  updatedAt: DateTime!
+}
+
+# ============================================================
+# FEEDBACK & VALIDATION (ERC-8004 ReputationRegistry / ValidationRegistry)
+# ============================================================
+
+type Feedback {
+  agent: Agent!
+  agentId: ID!
+  clientAddress: Bytes!
+  feedbackIndex: BigInt!
+  value: BigInt!               # signed (int128 on-chain) — can be negative
+  valueDecimals: Int!
+  tag1: String
+  tag2: String
+  endpoint: String
+  feedbackUri: String
+  feedbackHash: Bytes
+  isRevoked: Boolean!
+  responses: [FeedbackResponse!]!
+  txHash: Bytes!
+  blockNumber: BigInt!
+  createdAt: DateTime!
+}
+
+type FeedbackResponse {
+  responder: Bytes!
+  responseUri: String
+  responseHash: Bytes
+  createdAt: DateTime!
+}
+
+type Validation {
+  requestHash: ID!
+  validatorAddress: Bytes!
+  agent: Agent!
+  agentId: ID!
+  requestUri: String
+  response: Int                # 0-100, null until responded
+  responseUri: String
+  responseHash: Bytes
+  tag: String
+  requestedAt: DateTime!
+  respondedAt: DateTime
+}
+
+# ============================================================
+# JOB (ERC-8183 AgenticCommerce)
+# ============================================================
+
+type Job {
+  jobId: ID!
+  client: Agent
+  clientAddress: Bytes!
+  provider: Agent
+  providerAddress: Bytes
+  evaluatorAddress: Bytes!
+  hookAddress: Bytes
+  budget: BigInt!
+  status: JobStatus!
+  expiredAt: DateTime!
+  submissions: [JobSubmission!]!
+  settlement: JobSettlement
+  payments: [JobPayment!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type JobSubmission {
+  deliverable: Bytes!
+  submittedAt: DateTime!
+}
+
+type JobSettlement {
+  kind: JobSettlementKind!
+  actor: Bytes
+  reason: Bytes
+  txHash: Bytes!
+  blockNumber: BigInt!
+  createdAt: DateTime!
+}
+
+type JobPayment {
+  kind: JobPaymentKind!
+  recipient: Bytes!
+  amount: BigInt!
+  txHash: Bytes!
+  blockNumber: BigInt!
+  createdAt: DateTime!
+}
+
+# ============================================================
+# SUPPLY CHAIN — agent-to-agent hiring graph derived from Jobs
+# ============================================================
+
+type SupplyChainEdge {
+  client: Agent!
+  provider: Agent!
+  job: Job!
+  budget: BigInt!
+  status: JobStatus!
+  at: DateTime!
+}
+
+type SupplyChain {
+  rootAgent: Agent!
+  edges: [SupplyChainEdge!]!
+  depth: Int!
+}
+
+# ============================================================
+# ANALYTICS
+# ============================================================
+
+type AgentEconomyMetrics {
+  totalAgents: BigInt!
+  totalJobs: BigInt!
+  totalJobsCompleted: BigInt!
+  totalJobsRejected: BigInt!
+  totalJobsExpired: BigInt!
+  totalValueSettled: BigInt!
+  avgFeedbackValue: Float
+}
+
+type LeaderboardEntry {
+  rank: Int!
+  agent: Agent!
+  metricValue: BigInt!
+  metricLabel: String!
+}
+
+enum RiskAlertKind {
+  CIRCULAR_HIRING
+  STALLED_JOB
+  REPUTATION_DROP
+}
+
+enum RiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+# ============================================================
+# RISK / FRAUD DETECTION — Scorched's differentiator over generic
+# ERC-8004 explorers. See AUDIT.md. Populated by Scorched's own periodic
+# analysis (scorched_riskscan.go), not directly from indexed chain events.
+# ============================================================
+
+type RiskAlert {
+  id: ID!
+  kind: RiskAlertKind!
+  agent: Agent
+  job: Job
+  relatedAgentIds: [ID!]!
+  severity: RiskSeverity!
+  details: String!   # JSON-encoded, kind-specific (cycle value, days stalled, etc.)
+  detectedAt: DateTime!
+}
+
+# ============================================================
+# INPUT TYPES
+# ============================================================
+
+input AgentFilter {
+  tags: [String!]              # matches feedback.tag1/tag2
+  minAvgFeedbackValue: Float
+  minFeedbackCount: Int
+}
+
+input JobFilter {
+  status: JobStatus
+  clientAddress: Bytes
+  providerAddress: Bytes
+  minBudget: BigInt
+  maxBudget: BigInt
+}
+
+input PaginationInput {
+  first: Int = 20
+  after: String
+}
+
+# ============================================================
+# QUERIES
+# ============================================================
+
+type Query {
+  agent(agentId: ID!): Agent
+  agents(filter: AgentFilter, pagination: PaginationInput): AgentConnection!
+  searchAgents(query: String!, pagination: PaginationInput): AgentConnection!
+
+  job(jobId: ID!): Job
+  jobs(filter: JobFilter, pagination: PaginationInput): JobConnection!
+
+  agentSupplyChain(agentId: ID!, depth: Int = 3): SupplyChain
+
+  topAgents(byMetric: String = "feedbackCount", pagination: PaginationInput): [Agent!]!
+  leaderboard(metric: String!, pagination: PaginationInput): [LeaderboardEntry!]!
+  agentEconomyMetrics: AgentEconomyMetrics!
+
+  newAgents(limit: Int = 10): [Agent!]!
+  trendingAgents(timeframe: String = "24h", limit: Int = 10): [Agent!]!
+
+  # Risk & fraud detection
+  riskAlerts(agentId: ID, kind: RiskAlertKind, severity: RiskSeverity, pagination: PaginationInput): [RiskAlert!]!
+  circularHiringDetection: [RiskAlert!]!
+}
+
+# ============================================================
+# CONNECTION TYPES (Relay-style)
+# ============================================================
+
+type AgentConnection {
+  edges: [AgentEdge!]!
+  nodes: [Agent!]!
+  pageInfo: PageInfo!
+  totalCount: BigInt!
+}
+
+type AgentEdge {
+  node: Agent!
+  cursor: String!
+}
+
+type FeedbackConnection {
+  edges: [FeedbackEdge!]!
+  nodes: [Feedback!]!
+  pageInfo: PageInfo!
+  totalCount: BigInt!
+}
+
+type FeedbackEdge {
+  node: Feedback!
+  cursor: String!
+}
+
+type JobConnection {
+  edges: [JobEdge!]!
+  nodes: [Job!]!
+  pageInfo: PageInfo!
+  totalCount: BigInt!
+}
+
+type JobEdge {
+  node: Job!
+  cursor: String!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+  totalCount: BigInt!
+}
+
+# ============================================================
+# SUBSCRIPTIONS (Real-time)
+# ============================================================
+
+type Subscription {
+  newAgent: Agent!
+  agentUpdated(agentId: ID!): Agent!
+  newFeedback(agentId: ID): Feedback!
+
+  newJob: Job!
+  jobStatusChanged(jobId: ID!): Job!
+  jobSettled: JobSettlement!
+
+  newRiskAlert(agentId: ID): RiskAlert!
+}
