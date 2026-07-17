@@ -1,0 +1,262 @@
+# ============================================================
+# SCORCHED — Full Stack Docker Compose
+# PostgreSQL + Neo4j + Redis + Indexer + API + Frontend
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ==========================================================
+  # PostgreSQL — Relational Store for Events & State
+  # ==========================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: scorched-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scorched
+      POSTGRES_USER: scorched
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env — no default, do not reuse this file's old baked-in password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema_erc8004_8183.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./seed_test_data.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    ports:
+      # Bound to localhost only — remove entirely once other services no longer need host access
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scorched"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Neo4j — Graph Database for Supply Chain & Relationships
+  # ==========================================================
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: scorched-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH:?set NEO4J_AUTH=neo4j/<your-password> in .env — no default, do not reuse this file's old baked-in password}
+      NEO4J_PLUGINS: '["apoc", "gds"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 2G
+      NEO4J_dbms_memory_pagecache_size: 1G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - ./scorched_neo4j_schema.cypher:/init/neo4j_schema.cypher:ro
+    ports:
+      # Bound to localhost only — remove entirely once other services no longer need host access
+      - "127.0.0.1:7474:7474"  # HTTP
+      - "127.0.0.1:7687:7687"  # Bolt
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Redis — Caching, Pub/Sub, Checkpoint Store
+  # ==========================================================
+  redis:
+    image: redis:7-alpine
+    container_name: scorched-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    volumes:
+      - redis_data:/data
+    ports:
+      # Bound to localhost only — remove entirely once other services no longer need host access
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Indexer — Event Ingestion from X Layer
+  # ==========================================================
+  indexer:
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
+    container_name: scorched-indexer
+    restart: unless-stopped
+    environment:
+      XLAYER_RPC: ${XLAYER_RPC:-https://rpc.xlayer.tech}
+      XLAYER_WS: ${XLAYER_WS:-wss://xlayerws.okx.com}
+      ERC8004_REGISTRY: ${ERC8004_REGISTRY:?set ERC8004_REGISTRY to a real deployed registry address — see AUDIT.md}
+      APP_PROTOCOL: ${APP_PROTOCOL:?set APP_PROTOCOL to a real deployed contract address — see AUDIT.md}
+      POSTGRES_DSN: postgres://scorched:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/scorched?sslmode=disable
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD in .env}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      START_BLOCK: ${START_BLOCK:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - indexer_logs:/app/logs
+    networks:
+      - scorched
+
+  # ==========================================================
+  # API Server — GraphQL + REST + WebSocket
+  # ==========================================================
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: scorched-api
+    restart: unless-stopped
+    environment:
+      PORT: ${API_PORT:-8080}
+      POSTGRES_DSN: postgres://scorched:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/scorched?sslmode=disable
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD in .env}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      ENABLE_PLAYGROUND: ${ENABLE_PLAYGROUND:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-100}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Frontend — React Supply Chain Visualizer
+  # ==========================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scorched-frontend
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8080}
+      REACT_APP_WS_URL: ${REACT_APP_WS_URL:-ws://localhost:8080}
+      REACT_APP_XLAYER_EXPLORER: ${REACT_APP_XLAYER_EXPLORER:-https://www.oklink.com/xlayer}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Prometheus — Metrics Collection
+  # ==========================================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: scorched-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Grafana — Dashboards & Monitoring
+  # ==========================================================
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: scorched-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-scorched_dashboard}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+      - postgres
+    networks:
+      - scorched
+
+  # ==========================================================
+  # Nginx — Reverse Proxy & Load Balancer
+  # ==========================================================
+  nginx:
+    image: nginx:alpine
+    container_name: scorched-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - scorched
+
+# ============================================================
+# VOLUMES
+# ============================================================
+
+volumes:
+  postgres_data:
+    driver: local
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  redis_data:
+    driver: local
+  indexer_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ============================================================
+# NETWORKS
+# ============================================================
+
+networks:
+  scorched:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,71 @@
+# ============================================================
+# SCORCHED — Prometheus Monitoring Configuration
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'scorched'
+    replica: '{{.ExternalURL}}'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  # ==========================================================
+  # Scorched API Metrics
+  # ==========================================================
+  - job_name: 'scorched-api'
+    static_configs:
+      - targets: ['api:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # ==========================================================
+  # Scorched Indexer Metrics
+  # ==========================================================
+  - job_name: 'scorched-indexer'
+    static_configs:
+      - targets: ['indexer:9090']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # ==========================================================
+  # PostgreSQL Exporter
+  # ==========================================================
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 15s
+
+  # ==========================================================
+  # Redis Exporter
+  # ==========================================================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
+
+  # ==========================================================
+  # Node Exporter (host metrics)
+  # ==========================================================
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+
+  # ==========================================================
+  # Neo4j Metrics (if enabled)
+  # ==========================================================
+  - job_name: 'neo4j'
+    static_configs:
+      - targets: ['neo4j:2004']
+    scrape_interval: 30s
+    metrics_path: /metrics
